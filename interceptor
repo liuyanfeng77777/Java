@@ -1,0 +1,20 @@
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
+
+import com.opensymphony.xwork2.ActionInvocation;
+import com.opensymphony.xwork2.interceptor.AbstractInterceptor;
+
+public class LoginCheck extends AbstractInterceptor {
+
+	@Override
+	public String intercept(ActionInvocation act) throws Exception {
+		
+		Map session=act.getInvocationContext().getSession();
+		if(null==session.get("user"))
+		return "login";
+		return act.invoke();
+	}
+
+}
