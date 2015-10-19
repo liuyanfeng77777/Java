@@ -1,0 +1,110 @@
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.apache.struts2.ServletActionContext;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
+
+import util.HibernateSessionFactory;
+import POJO.*;
+
+public class CommentDao {
+
+	public  boolean comment(Comment comment)
+	{
+		try {
+			SessionFactory sf=HibernateSessionFactory.getSessionFactory();
+			Session session=sf.openSession();
+			HttpServletRequest request=ServletActionContext.getRequest();
+			User user=(User) request.getSession().getAttribute("user");
+			Transaction tran=session.beginTransaction();
+			comment.setLeaverid(user.getId());
+			comment.setDate(new Date());
+			session.save(comment);
+			tran.commit();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+		
+		return true;
+	}
+	
+	public boolean delete(Comment comment)
+	{
+		try {
+			SessionFactory sf=HibernateSessionFactory.getSessionFactory();
+			Session session=sf.openSession();
+			Transaction tran=session.beginTransaction();
+			Comment obj=(Comment)session.get(Comment.class, comment.getId());
+			session.delete(obj);
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+
+		return true;
+	}
+	
+	public List<Comment> getByArticleId(Comment comment)
+	{
+		SessionFactory sf=HibernateSessionFactory.getSessionFactory();
+		Session session=sf.openSession();
+		HttpServletRequest request=ServletActionContext.getRequest();
+		String hql="from Comment where articleid="+comment.getArticleid();
+		List<Comment> list=session.createQuery(hql).list();
+		List<List<Reply>> replys=new ArrayList<List<Reply>>();
+		List<List<User>> users=new ArrayList<List<User>>();
+		List<User> commentusers=new ArrayList<User>();
+		for(int i=0;i<list.size();i++){
+			String hql2="from Reply where commentid="+list.get(i).getId();
+			List<Reply> rps=session.createQuery(hql2).list();
+			replys.add(rps);
+			List<User> pus=new ArrayList<User>();
+			User cuser=(User) session.get(User.class, list.get(i).getLeaverid());
+			commentusers.add(cuser);
+			for(int j=0;j<rps.size();j++){				
+				User user=(User) session.get(User.class,rps.get(j).getReplyerid() );
+				pus.add(user);
+			}
+			users.add(pus);
+			
+		}
+		request.setAttribute("comments", list);
+		request.setAttribute("replyusers", users);
+		request.setAttribute("replys", replys);
+		request.setAttribute("commentusers", commentusers);
+		User user=(User)request.getSession().getAttribute("user");
+		if(user.getId()==comment.getUserid()){
+			
+			Transaction tran=session.beginTransaction();
+			tran.begin();
+			for(int i=0;i<list.size();i++)
+			{
+				list.get(i).setIsread(true);
+				session.update(list.get(i));
+			}
+			tran.commit();
+		}
+
+		return list;
+	}
+	
+	public List<Comment> getUnread(Comment comment)
+	{
+		SessionFactory sf=HibernateSessionFactory.getSessionFactory();
+		Session session=sf.openSession();
+		HttpServletRequest request=ServletActionContext.getRequest();
+		String hql="from Comment where userid="+comment.getUserid()+" and isread=0";
+		List<Comment> list=session.createQuery(hql).list();
+		request.setAttribute("comments", list);
+
+		return list;
+	}
+}
